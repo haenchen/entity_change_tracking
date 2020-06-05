@@ -1,0 +1,9 @@
+name: entity_change_tracking
+type: module
+description: |
+  Provides functionality to track entity changes and new entities
+core: 8.x
+package: haenchen toolkit
+dependencies:
+  - drush
+

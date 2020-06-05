@@ -1,0 +1,6 @@
+entity_change_tracking.config_form:
+  title: 'Configure data change tracking'
+  route_name: entity_change_tracking.config_form
+  description: 'Select which fields of which Entity should be tracked'
+  parent: system.admin_config_system
+  weight: 70

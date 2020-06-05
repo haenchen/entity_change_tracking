@@ -1,0 +1,9 @@
+entity_change_tracking.config_form:
+  path: /admin/config/entity_change_tracking/config
+  defaults:
+    _form: \haenchen\entity_change_tracking\Form\DataChangeTrackingConfigForm
+    _title: 'Entity Change Tracking'
+  requirements:
+    _permission: 'access administration pages'
+  options:
+    _admin_route: true

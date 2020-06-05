@@ -1,0 +1,5 @@
+services:
+  entity_change_tracking.commands:
+    class: \haenchen\entity_change_tracking\Commands\EntityChangeTrackingCommands
+    tags:
+      - { name: drush.command }

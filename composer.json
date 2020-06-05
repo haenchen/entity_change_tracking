@@ -1,0 +1,17 @@
+{
+  "name": "haenchen/entity_change_tracking",
+  "description": "Allows the tracking of any entity changes",
+  "minimum-stability": "stable",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "fabian.haenchen",
+      "email": "mail@fabian-haenchen.de"
+    }
+  ],
+  "require": {
+    "php": ">=7.1",
+    "drupal/core": "^8.0",
+    "drush/drush": "~9.0"
+  }
+}

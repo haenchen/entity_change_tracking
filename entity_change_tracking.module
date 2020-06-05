@@ -1,0 +1,25 @@
+<?php
+
+use haenchen\entity_change_tracking\Controller\EntityChangeTrackingController;
+
+/**
+ * Implements hook_rebuild().
+ */
+function entity_change_tracking_rebuild() {
+  EntityChangeTrackingController::rebuildEntityCache();
+}
+
+/**
+ * Implements hook_entity_presave().
+ */
+function entity_change_tracking_entity_presave(Drupal\Core\Entity\EntityInterface $entity) {
+  if (!$entity->isNew())
+    EntityChangeTrackingController::handleChangedEntity($entity);
+}
+
+/**
+ * Implements hook_entity_insert().
+ */
+function entity_change_tracking_entity_insert(Drupal\Core\Entity\EntityInterface $entity) {
+  EntityChangeTrackingController::handleNewEntity($entity);
+}
