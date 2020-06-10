@@ -10,43 +10,34 @@ use haenchen\entity_change_tracking\Form\EntityChangeTrackingConfigForm;
 use Drupal\user\Entity\User;
 
 class EntityChangeTrackingController {
-  
-  public static function rebuildEntityCache(): void {
+
+  public function getTypes(): array {
     \Drupal::cache()->delete('qd_data_tracking.classes');
     $classes = [];
     foreach (\Drupal::entityTypeManager()->getDefinitions() as $definition)
-      $classes[] = $definition->getClass();
-    
-    \Drupal::cache()->set('entity_change_tracking.classes', $classes);
+      $classes[] = $definition->id();
+    return $classes;
   }
-  
-  public static function getClasses(): array {
-    $cache = \Drupal::cache()->get('entity_change_tracking.classes');
-    if (!$cache || !$cache->data) {
-      self::rebuildEntityCache();
-    }
-    return \Drupal::cache()->get('entity_change_tracking.classes')->data;
-  }
-  
-  public static function handleNewEntity(EntityInterface $oEntity) {
-    if (self::userMakesAuthorizedChanges($oEntity))
+
+  public function handleNewEntity(EntityInterface $entity): void {
+    if ($this->userMakesAuthorizedChanges($entity))
       return;
-    
-    $simpleClassName = self::getSimpleClassName($oEntity);
-    if (empty($simpleClassName))
+
+    $entityType = $entity->getEntityTypeId();
+    if (!in_array($entityType, $this->getTypes(), TRUE))
       return;
-    $data = \Drupal::config(EntityChangeTrackingConfigForm::CONFIG_NAME)
+    $aData = \Drupal::config(EntityChangeTrackingConfigForm::CONFIG_NAME)
       ->get('data');
-    if (!$data[$simpleClassName]['track_new'])
+    if (empty($aData[$entityType]['track_new']))
       return;
-    self::createCreationMailing($oEntity);
+    $this->createCreationMailing($entity);
   }
-  
-  private static function createCreationMailing(EntityInterface $entity) {
+
+  private function createCreationMailing(EntityInterface $entity): void {
     $sSubject = t('A new :entity entity has been created.', [
       ':entity' => $entity->getEntityTypeId(),
     ]);
-    
+
     $sBody = t('%entity has been created with the following values: <br><br>', [
       '%entity' => $entity->toLink()->toString(),
     ]);
@@ -60,41 +51,41 @@ class EntityChangeTrackingController {
         ':value' => $entity->$field->value,
       ]);
     }
-    
+
     /** TODO: rework mailing */
-    self::handleMailing([
+    $this->handleMailing([
       'is_admin_mail' => TRUE,
       'subject' => $sSubject,
       'body' => $sBody,
     ]);
   }
-  
-  public static function handleChangedEntity(EntityInterface $entity) {
-    if (self::userMakesAuthorizedChanges($entity))
+
+  public function handleChangedEntity(EntityInterface $entity): void {
+    if ($this->userMakesAuthorizedChanges($entity))
       return;
-    
-    $simpleClassName = self::getSimpleClassName($entity);
-    if (empty($simpleClassName))
+
+    $entityTypeId = $entity->getEntityTypeId();
+    if (!in_array($entityTypeId, $this->getTypes(), TRUE))
       return;
-    
+
     $changedFields = [];
     $data = \Drupal::config(EntityChangeTrackingConfigForm::CONFIG_NAME)
       ->get('data');
-    foreach ($data[$simpleClassName] as $field => $track) {
-      if ($track && $entity->$field->value != $entity->original->$field->value)
+    foreach ($data[$entityTypeId]['fields'] as $field) {
+      if ($entity->$field->getValue() !== $entity->original->$field->getValue())
         $changedFields[] = $field;
     }
-    
-    self::createChangedMailingIfNecessary($entity, $changedFields);
+
+    $this->createChangedMailingIfNecessary($entity, $changedFields);
   }
-  
-  private static function createChangedMailingIfNecessary(EntityInterface $entity, array $changedFields) {
+
+  private function createChangedMailingIfNecessary(EntityInterface $entity, array $changedFields): void {
     if (!$changedFields)
       return;
-    
+
     $entityType = $entity->getEntityTypeId();
-    
-    $subjec = t('A(n) %entity entity has been changed', [
+
+    $subject = t('A(n) %entity entity has been changed', [
       '%entity' => $entityType,
     ]);
     $body = t('The %entity entity with the id :id has been changed. <br>'
@@ -111,8 +102,7 @@ class EntityChangeTrackingController {
           '%original' => $oldValue[0]['value'],
           '%new' => $newValue[0]['value'],
         ]);
-      }
-      else {
+      } else {
         $difference = count($oldValue) < count($newValue) ? t('increased') : t('reduced');
         $body .= t('The amount of items in %field has been :difference. <br>', [
           '%field' => $field,
@@ -121,40 +111,22 @@ class EntityChangeTrackingController {
       }
     }
     $body .= t('<br>Please check what these changed may effect.');
-    
+
     /** TODO: rework mail handling */
-    self::handleMailing([
+    $this->handleMailing([
       'is_admin_mail' => TRUE,
-      'subject' => $subjec,
+      'subject' => $subject,
       'body' => $body,
     ]);
   }
-  
-  private static function getSimpleClassName(EntityInterface $oEntity): string {
-    $classes = self::getClasses();
-    $fullClassName = $oEntity->getEntityType()->getClass();
-    $parts = explode('\\', $fullClassName);
-    $simpleClassName = end($parts);
-    if (in_array($fullClassName, $classes, TRUE))
-      return $simpleClassName;
-    return '';
-  }
-  
-  private static function userMakesAuthorizedChanges(EntityInterface $oEntity): bool {
-    $user = \Drupal::currentUser();
+
+  private function userMakesAuthorizedChanges(EntityInterface $entity): bool {
+    $user = \Drupal::currentUser() ?: User::load($entity->user_id->value);
+    if (!$user)
+      return FALSE;
     if ($user->hasPermission('can make authorized changes'))
       return TRUE;
-    
-    if (\Drupal::currentUser()->isAuthenticated())
-      return FALSE;
-    
-    $authorId = $oEntity->user_id->value ?? 0;
-    $user = User::load($authorId);
-    if ($user)
-      return FALSE;
-    
-    if ($user->hasPermission('can make authorized changes'))
-      return TRUE;
+
     return FALSE;
   }
 }

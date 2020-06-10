@@ -23,32 +23,32 @@ class EntityChangeTrackingConfigForm extends ConfigFormBase {
 
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form = parent::buildForm($form, $form_state);
-    $classes = EntityChangeTrackingController::getClasses();
+    $entityTypes = (new EntityChangeTrackingController)->getTypes();
     $data = \Drupal::config(self::CONFIG_NAME)->get('data');
-    foreach ($classes as $fullClassName) {
-      $parts = explode('\\', $fullClassName);
-      $className = end($parts);
-      $form[$className] = [
+    $fieldManager = \Drupal::service('entity_field.manager');
+
+    foreach ($entityTypes as $entityTypeId) {
+      $form[$entityTypeId] = [
         '#type' => 'details',
-        '#title' => $className,
-        $className . '-track_new' => [
+        '#title' => $entityTypeId,
+        $entityTypeId . '-track_new' => [
           '#type' => 'checkbox',
           '#title' => t('Track new entities'),
           '#description' => t('An email will be sent when a new entity of this type is created.'),
-          '#default_value' => $data[$className]['track_new'] ?? FALSE,
+          '#default_value' => $data[$entityTypeId]['track_new'] ?? FALSE,
         ],
       ];
-  
-      /** @var BaseFieldDefinition $field */
-      foreach ($fullClassName::create()->getFieldDefinitions() as $field) {
-        $sName = $field->getName();
-        $form[$className][$className . '-' . $sName] = [
-          '#type' => 'checkbox',
-          '#title' => $sName . ' (' . $field->getLabel() . ')',
-          '#description' => $field->getDescription(),
-          '#default_value' => $data[$className][$sName] ?? FALSE,
-        ];
-      }
+
+      $fields = $fieldManager->getBaseFieldDefinitions($entityTypeId);
+      $fields = array_map(static function (BaseFieldDefinition $field) {
+        return $field->getName();
+      }, $fields);
+      $form[$entityTypeId][$entityTypeId . '-fields'] = [
+        '#type' => 'checkboxes',
+        '#title' => t('Select which fields to track'),
+        '#options' => $fields,
+        '#default_value' => $data[$entityTypeId]['fields'] ?? [],
+      ];
     }
     return $form;
   }
@@ -59,7 +59,10 @@ class EntityChangeTrackingConfigForm extends ConfigFormBase {
       if (strpos($key, '-') === FALSE)
         continue;
       $parts = explode('-', $key);
-      $data[$parts[0]][$parts[1]] = $value;
+      if ($parts[1] === 'track_new')
+        $aData[$parts[0]]['track_new'] = $value;
+      if (is_array($value))
+        $this->setTrackedFields($aData, $parts[0], $value);
     }
 
     $config = \Drupal::configFactory()
@@ -68,5 +71,12 @@ class EntityChangeTrackingConfigForm extends ConfigFormBase {
     $config->save();
   }
 
+  private function setTrackedFields(array &$data, string $entityType, array $fields) {
+    $fieldsToTrack = [];
+    foreach ($fields as $key => $value)
+      if ($value)
+        $fieldsToTrack[] = $key;
 
+    $data[$entityType]['fields'] = $fieldsToTrack;
+  }
 }

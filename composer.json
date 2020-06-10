@@ -3,6 +3,7 @@
   "description": "Allows the tracking of any entity changes",
   "minimum-stability": "stable",
   "license": "MIT",
+  "version": "0.1",
   "authors": [
     {
       "name": "fabian.haenchen",

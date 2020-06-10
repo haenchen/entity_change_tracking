@@ -10,68 +10,47 @@ use haenchen\entity_change_tracking\Form\EntityChangeTrackingConfigForm;
 use Drush\Commands\DrushCommands;
 
 /** @noinspection ContractViolationInspection */
+
 class EntityChangeTrackingCommands extends DrushCommands {
 
   /**
    * @usage drush entity_change_tracking:track-field-changes
-   *   Enables change tracking for the specified field of the specified class
+   *   Enables change tracking for the specified field of the specified entity type
    *
-   * @param string $identifier
-   *   The class that contains the field that shall be tracked
+   * @param string $entityType
+   *   The entity type that contains the field that shall be tracked
    *
    * @param string $field
    *   The name of the field that shall be tracked
    *
-   * @option classname Use the class name instead of EntityTypeId
-   *
    * @command entity_change_tracking:track-field-changes
    * @aliases tfc
    */
-  public function trackFieldChanges(string $identifier, string $field, array $options = [
-    'classname' => FALSE,
-  ]) {
-
-    if ($options['classname'] !== TRUE) {
-      $identifier = $this->getClassByEntityTypeId($identifier);
-      if (!$identifier)
-        return;
-    }
-
-    $identifier = $this->validateInputs($identifier, $field);
-    if (!$identifier)
+  public function trackFieldChanges(string $entityType, string $field): void {
+    if (!$this->validateInputs($entityType, $field))
       return;
 
-    $this->setTracking($identifier, $field, TRUE);
-    $this->logger()->success("Tracking enabled for $field in $identifier");
+    $this->setTracking($entityType, $field, TRUE);
+    $this->logger()->success("Tracking enabled for $field in $entityType");
   }
 
   /**
    * @usage drush entity_change_tracking:untrack-field-changes
-   *   Disables change tracking for the specified field of the specified class
+   *   Disables change tracking for the specified field of the specified entity type
    *
    * @param string $identifier
-   *   The class that contains the field that shall no longer be tracked
+   *   The entity type that contains the field that shall no longer be tracked
    *
    * @param string $field
    *   The name of the field that shall no longer be tracked
    *
-   * @option classname Use the class name instead of EntityTypeId
+   * @option entity typename Use the entity type name instead of EntityTypeId
    *
    * @command entity_change_tracking:untrack-field-changes
    * @aliases ufc
    */
-  public function untrackFieldChanges(string $identifier, string $field, array $options = [
-    'classname' => FALSE,
-  ]) {
-
-    if ($options['classname'] !== TRUE) {
-      $identifier = $this->getClassByEntityTypeId($identifier);
-      if (!$identifier)
-        return;
-    }
-
-    $identifier = $this->validateInputs($identifier, $field);
-    if (!$identifier)
+  public function untrackFieldChanges(string $identifier, string $field): void {
+    if (!$this->validateInputs($identifier, $field))
       return;
 
     $this->setTracking($identifier, $field, FALSE);
@@ -83,29 +62,16 @@ class EntityChangeTrackingCommands extends DrushCommands {
    *   Enables the tracking of new entities
    *
    * @param string $identifier
-   *   The Entityclass that shall be tracked
-   *
-   * @option classname Use the class name instead of EntityTypeId
+   *   The entity type that shall be tracked
    *
    * @command entity_change_tracking:track-field
    * @aliases tne
    */
-  public function trackNewEntities(string $identifier, array $options = [
-    'classname' => FALSE,
-  ]) {
-
-    if ($options['classname'] !== TRUE) {
-      $identifier = $this->getClassByEntityTypeId($identifier);
-      if (!$identifier)
-        return;
-    }
-
-    $identifier = $this->validateClass($identifier);
-    if (!$identifier)
+  public function trackNewEntities(string $identifier): void {
+    if (!$this->validateType($identifier))
       return;
 
-    $identifier = $this->getClassName($identifier);
-    $this->setTracking($identifier, 'track_new', TRUE);
+    $this->setNewEntityTracking($identifier, TRUE);
     $this->logger()->success("Tracking enabled for new $identifier entities");
   }
 
@@ -114,142 +80,103 @@ class EntityChangeTrackingCommands extends DrushCommands {
    *   Disables the tracking of new entities
    *
    * @param string $identifier
-   *   The Entityclass that shall no longer be tracked
-   *
-   * @option classname Use the class name instead of EntityTypeId
+   *   The entity type that shall no longer be tracked
    *
    * @command entity_change_tracking:untrack-field
    * @aliases une
    */
-  public function untrackNewEntities(string $identifier, array $options = [
-    'classname' => FALSE,
-  ]) {
-
-    if ($options['classname'] !== TRUE) {
-      $identifier = $this->getClassByEntityTypeId($identifier);
-      if (!$identifier)
-        return;
-    }
-
-    $identifier = $this->validateClass($identifier);
-    if (!$identifier)
+  public function untrackNewEntities(string $identifier): void {
+    if (!$this->validateType($identifier))
       return;
 
-    $identifier = $this->getClassName($identifier);
-    $this->setTracking($identifier, 'track_new', FALSE);
-    $this->logger()->success("Tracking disabled for new $identifier entities");
-  }
-
-  private function getValidClass(string $className): string {
-    $entityDefinitions = \Drupal::entityTypeManager()->getDefinitions();
-    $allClasses = array_map(static function (EntityTypeInterface $oDefinition) {
-      return $oDefinition->getClass();
-    }, $entityDefinitions);
-    $matches = [];
-    $lowerClassName = strtolower($className);
-    foreach ($allClasses as $declaredClass) {
-      $lowerDeclaredClassName = strtolower($declaredClass);
-      if ($lowerClassName === $lowerDeclaredClassName)
-        return $className;
-
-      $currentClass = $this->getClassName($lowerDeclaredClassName);
-      if ($lowerClassName === $currentClass)
-        $matches[] = $declaredClass;
-    }
-    $matchCount = count($matches);
-    if ($matchCount < 1) {
-      $this->logger()->error($className . ' does not exist.');
-      return '';
-    }
-    if ($matchCount > 1) {
-      $this->logger()
-        ->error('Multiple classes found, please provide the fully qualified class name.');
-      return '';
-    }
-    return reset($matches);
+    $this->setNewEntityTracking($identifier, FALSE);
+    $this->logger()->success("Tracking enabled for new $identifier entities");
   }
 
   /**
-   * Checks whether a field exists within a class
+   * Checks whether a field exists within a entity type
    *
-   * @param string $className The class that is supposed to have the field
-   * @param string $field The field that is supposed to exist in the class
+   * @param string $entityType The entity type that is supposed to have the field
+   * @param string $field The field that is supposed to exist in the entity type
    *
-   * @return bool TRUE if the field exists withing the class
+   * @return bool TRUE if the field exists withing the entity type
    */
-  private function fieldIsValid(string $className, string $field) {
-    /** @noinspection PhpUndefinedMethodInspection */
-    $fields = $className::create()->getFieldDefinitions();
-    $fieldNames = array_map(static function (BaseFieldDefinition $field) {
+  private function fieldIsValid(string $entityType, string $field): bool {
+    $fields = \Drupal::service('entity_field.manager')->getBaseFieldDefinitions($entityType);
+    $fields = array_map(static function (BaseFieldDefinition $field) {
       return $field->getName();
     }, $fields);
-    return in_array($field, $fieldNames, TRUE);
+    return in_array($field, $fields, TRUE);
   }
 
   /**
    * Checks if the class is defined, trackable and whether it has the specified field
    *
-   * @param string $className The class that shall be validated
-   * @param string $field The field that the class is supposed to have
+   * @param string $entityType The entity type that shall be validated
+   * @param string $field The field that the entity type is supposed to have
    *
-   * @return string The classname in the correct case if, empty if it does not exist
+   * @return bool TRUE if the entity type exists and has the specified field
    */
-  private function validateInputs(string $className, string $field): string {
-    $fullClassName = $this->validateClass($className);
-    if (!$fullClassName)
-      return '';
-
-    if (!$this->fieldIsValid($fullClassName, $field)) {
-      $this->logger()->error("$className does not have a field called '$field'.");
-      return '';
+  private function validateInputs(string $entityType, string $field): bool {
+    if (!$this->validateType($entityType)) {
+      return FALSE;
     }
 
-    return $this->getClassName($fullClassName);
+    if (!$this->fieldIsValid($entityType, $field)) {
+      $this->logger()->error("$entityType does not have a field called '$field'.");
+      return FALSE;
+    }
+
+    return TRUE;
   }
 
   /**
    * Checks if a class is defined and trackable
    *
-   * @param string $className The class that shall be validated
+   * @param string $entityType The entity type that shall be validated
    *
-   * @return string The fully qualified class name or empty if it does not exist
+   * @return bool TRUE if the entity type exists and is trackable
    */
-  private function validateClass(string $className): string {
-    $fullClassName = $this->getValidClass($className);
-    if (!$fullClassName)
-      return '';
-
-    $classes = EntityChangeTrackingController::getClasses();
-    if (!in_array($fullClassName, $classes)) {
-      $this->logger->error($className . ' is not a trackable class.');
-      return '';
+  private function validateType(string $entityType): bool {
+    if (!\Drupal::entityTypeManager()->hasDefinition($entityType)) {
+      $this->logger()->error("$entityType does not exist.");
+      return FALSE;
     }
 
-    return $fullClassName;
+    $classes = (new EntityChangeTrackingController)->getTypes();
+    if (!in_array($entityType, $classes, TRUE)) {
+      $this->logger->error($entityType . ' is not a trackable entity type.');
+      return FALSE;
+    }
+
+    return TRUE;
   }
 
-  private function setTracking(string $className, string $field, bool $track) {
+  private function setTracking(string $entityType, string $field, bool $track) {
     $config = \Drupal::configFactory()
       ->getEditable(EntityChangeTrackingConfigForm::CONFIG_NAME);
 
     $data = $config->get('data') ?? [];
-    $data[$className][$field] = $track ? 1 : 0;
+    $trackedFields = $data[$entityType]['fields'] ?? [];
 
+    if ($track && !in_array($field, $trackedFields, TRUE)) {
+      $trackedFields[] = $field;
+    }
+    if (!$track && in_array($field, $trackedFields, TRUE)) {
+      $position = array_search($field, $trackedFields, TRUE);
+      unset($trackedFields[$position]);
+    }
+
+    $data[$entityType]['fields'] = $trackedFields;
     $config->set('data', $data);
     $config->save();
   }
 
-  private function getClassName(string $fullClassName) {
-    $parts = explode('\\', $fullClassName);
-    return end($parts);
-  }
-
-  private function getClassByEntityTypeId(string $sTypeId): string {
-    $manager = \Drupal::entityTypeManager();
-    if (!$manager->hasDefinition($sTypeId)) {
-      $this->logger()->error("Entity type $sTypeId does not exist");
-      return '';
-    }
-    return $manager->getDefinition($sTypeId)->getClass();
+  private function setNewEntityTracking(string $entityType, bool $track) {
+    $config = \Drupal::configFactory()
+      ->getEditable(EntityChangeTrackingConfigForm::CONFIG_NAME);
+    $data[$entityType]['track_new'] = $track;
+    $config->set('data', $data);
+    $config->save();
   }
 }
