@@ -3,6 +3,7 @@
 
 namespace haenchen\entity_change_tracking\Commands;
 
+use Drupal\Core\Config\Config;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
 use haenchen\entity_change_tracking\Controller\EntityChangeTrackingController;
@@ -15,7 +16,8 @@ class EntityChangeTrackingCommands extends DrushCommands {
 
   /**
    * @usage drush entity_change_tracking:track-field-changes
-   *   Enables change tracking for the specified field of the specified entity type
+   *   Enables change tracking for the specified field of the specified entity
+   *   type
    *
    * @param string $entityType
    *   The entity type that contains the field that shall be tracked
@@ -27,8 +29,9 @@ class EntityChangeTrackingCommands extends DrushCommands {
    * @aliases tfc
    */
   public function trackFieldChanges(string $entityType, string $field): void {
-    if (!$this->validateInputs($entityType, $field))
+    if (!$this->validateInputs($entityType, $field)) {
       return;
+    }
 
     $this->setTracking($entityType, $field, TRUE);
     $this->logger()->success("Tracking enabled for $field in $entityType");
@@ -36,7 +39,8 @@ class EntityChangeTrackingCommands extends DrushCommands {
 
   /**
    * @usage drush entity_change_tracking:untrack-field-changes
-   *   Disables change tracking for the specified field of the specified entity type
+   *   Disables change tracking for the specified field of the specified entity
+   *   type
    *
    * @param string $identifier
    *   The entity type that contains the field that shall no longer be tracked
@@ -50,8 +54,9 @@ class EntityChangeTrackingCommands extends DrushCommands {
    * @aliases ufc
    */
   public function untrackFieldChanges(string $identifier, string $field): void {
-    if (!$this->validateInputs($identifier, $field))
+    if (!$this->validateInputs($identifier, $field)) {
       return;
+    }
 
     $this->setTracking($identifier, $field, FALSE);
     $this->logger()->success("Tracking disabled for $field in $identifier");
@@ -68,8 +73,9 @@ class EntityChangeTrackingCommands extends DrushCommands {
    * @aliases tne
    */
   public function trackNewEntities(string $identifier): void {
-    if (!$this->validateType($identifier))
+    if (!$this->validateType($identifier)) {
       return;
+    }
 
     $this->setNewEntityTracking($identifier, TRUE);
     $this->logger()->success("Tracking enabled for new $identifier entities");
@@ -86,23 +92,69 @@ class EntityChangeTrackingCommands extends DrushCommands {
    * @aliases une
    */
   public function untrackNewEntities(string $identifier): void {
-    if (!$this->validateType($identifier))
+    if (!$this->validateType($identifier)) {
       return;
+    }
 
     $this->setNewEntityTracking($identifier, FALSE);
     $this->logger()->success("Tracking enabled for new $identifier entities");
   }
 
   /**
+   * @usage
+   *
+   * @param string $address The email address that is supposed to receive
+   *   tracking notifications
+   *
+   * @command entity_change_tracking:add-tracking-recipient
+   * @alias atr
+   */
+  public function addTrackingRecipient(string $address) {
+    if (!\Drupal::service('email.validator')->isValid($address)) {
+      $this->logger()->error("$address is not a valid email address.");
+      return;
+    }
+
+    $config = $this->getEditableConfig();
+    $recipients = explode(';', $config->get('recipients'));
+    $recipients[] = $address;
+    $config->set('recipients', implode(';', $recipients));
+    $config->save();
+  }
+
+  /**
+   * @usage
+   *
+   * @param string $address The email address that is supposed to no longer
+   *   receive tracking notifications
+   *
+   * @command entity_change_tracking:remove-tracking-recipient
+   * @alias rtr
+   */
+  public function removeTrackingRecipient(string $address) {
+    $config = $this->getEditableConfig();
+    $recipients = explode(';', $config->get('recipients'));
+    $key = array_search($address, $recipients, TRUE);
+    if ($key !== FALSE) {
+      unset($recipients[$key]);
+    }
+    $config->set('recipients', implode(';', $recipients));
+    $config->save();
+  }
+
+  /**
    * Checks whether a field exists within a entity type
    *
-   * @param string $entityType The entity type that is supposed to have the field
-   * @param string $field The field that is supposed to exist in the entity type
+   * @param string $entityType The entity type that is supposed to have the
+   *   field
+   * @param string $field The field that is supposed to exist in the entity
+   *   type
    *
    * @return bool TRUE if the field exists withing the entity type
    */
   private function fieldIsValid(string $entityType, string $field): bool {
-    $fields = \Drupal::service('entity_field.manager')->getBaseFieldDefinitions($entityType);
+    $fields = \Drupal::service('entity_field.manager')
+      ->getBaseFieldDefinitions($entityType);
     $fields = array_map(static function (BaseFieldDefinition $field) {
       return $field->getName();
     }, $fields);
@@ -110,7 +162,8 @@ class EntityChangeTrackingCommands extends DrushCommands {
   }
 
   /**
-   * Checks if the class is defined, trackable and whether it has the specified field
+   * Checks if the class is defined, trackable and whether it has the specified
+   * field
    *
    * @param string $entityType The entity type that shall be validated
    * @param string $field The field that the entity type is supposed to have
@@ -123,7 +176,8 @@ class EntityChangeTrackingCommands extends DrushCommands {
     }
 
     if (!$this->fieldIsValid($entityType, $field)) {
-      $this->logger()->error("$entityType does not have a field called '$field'.");
+      $this->logger()
+        ->error("$entityType does not have a field called '$field'.");
       return FALSE;
     }
 
@@ -152,9 +206,8 @@ class EntityChangeTrackingCommands extends DrushCommands {
     return TRUE;
   }
 
-  private function setTracking(string $entityType, string $field, bool $track) {
-    $config = \Drupal::configFactory()
-      ->getEditable(EntityChangeTrackingConfigForm::CONFIG_NAME);
+  private function setTracking(string $entityType, string $field, bool $track): void {
+    $config = $this->getEditableConfig();
 
     $data = $config->get('data') ?? [];
     $trackedFields = $data[$entityType]['fields'] ?? [];
@@ -172,11 +225,20 @@ class EntityChangeTrackingCommands extends DrushCommands {
     $config->save();
   }
 
-  private function setNewEntityTracking(string $entityType, bool $track) {
-    $config = \Drupal::configFactory()
-      ->getEditable(EntityChangeTrackingConfigForm::CONFIG_NAME);
+  private function setNewEntityTracking(string $entityType, bool $track): void {
+    $config = $this->getEditableConfig();
     $data[$entityType]['track_new'] = $track;
     $config->set('data', $data);
     $config->save();
   }
+
+  /**
+   * @return Config Editable config object
+   */
+  private function getEditableConfig(): Config {
+    $config = \Drupal::configFactory()
+      ->getEditable(EntityChangeTrackingConfigForm::CONFIG_NAME);
+    return $config;
+  }
+
 }

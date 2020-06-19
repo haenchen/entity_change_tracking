@@ -14,22 +14,26 @@ class EntityChangeTrackingController {
   public function getTypes(): array {
     \Drupal::cache()->delete('qd_data_tracking.classes');
     $classes = [];
-    foreach (\Drupal::entityTypeManager()->getDefinitions() as $definition)
+    foreach (\Drupal::entityTypeManager()->getDefinitions() as $definition) {
       $classes[] = $definition->id();
+    }
     return $classes;
   }
 
   public function handleNewEntity(EntityInterface $entity): void {
-    if ($this->userMakesAuthorizedChanges($entity))
+    if ($this->userMakesAuthorizedChanges($entity)) {
       return;
+    }
 
     $entityType = $entity->getEntityTypeId();
-    if (!in_array($entityType, $this->getTypes(), TRUE))
+    if (!in_array($entityType, $this->getTypes(), TRUE)) {
       return;
+    }
     $aData = \Drupal::config(EntityChangeTrackingConfigForm::CONFIG_NAME)
       ->get('data');
-    if (empty($aData[$entityType]['track_new']))
+    if (empty($aData[$entityType]['track_new'])) {
       return;
+    }
     $this->createCreationMailing($entity);
   }
 
@@ -61,27 +65,31 @@ class EntityChangeTrackingController {
   }
 
   public function handleChangedEntity(EntityInterface $entity): void {
-    if ($this->userMakesAuthorizedChanges($entity))
+    if ($this->userMakesAuthorizedChanges($entity)) {
       return;
+    }
 
     $entityTypeId = $entity->getEntityTypeId();
-    if (!in_array($entityTypeId, $this->getTypes(), TRUE))
+    if (!in_array($entityTypeId, $this->getTypes(), TRUE)) {
       return;
+    }
 
     $changedFields = [];
     $data = \Drupal::config(EntityChangeTrackingConfigForm::CONFIG_NAME)
       ->get('data');
     foreach ($data[$entityTypeId]['fields'] as $field) {
-      if ($entity->$field->getValue() !== $entity->original->$field->getValue())
+      if ($entity->$field->getValue() !== $entity->original->$field->getValue()) {
         $changedFields[] = $field;
+      }
     }
 
     $this->createChangedMailingIfNecessary($entity, $changedFields);
   }
 
   private function createChangedMailingIfNecessary(EntityInterface $entity, array $changedFields): void {
-    if (!$changedFields)
+    if (!$changedFields) {
       return;
+    }
 
     $entityType = $entity->getEntityTypeId();
 
@@ -102,7 +110,8 @@ class EntityChangeTrackingController {
           '%original' => $oldValue[0]['value'],
           '%new' => $newValue[0]['value'],
         ]);
-      } else {
+      }
+      else {
         $difference = count($oldValue) < count($newValue) ? t('increased') : t('reduced');
         $body .= t('The amount of items in %field has been :difference. <br>', [
           '%field' => $field,
@@ -114,7 +123,6 @@ class EntityChangeTrackingController {
 
     /** TODO: rework mail handling */
     $this->handleMailing([
-      'is_admin_mail' => TRUE,
       'subject' => $subject,
       'body' => $body,
     ]);
@@ -122,11 +130,14 @@ class EntityChangeTrackingController {
 
   private function userMakesAuthorizedChanges(EntityInterface $entity): bool {
     $user = \Drupal::currentUser() ?: User::load($entity->user_id->value);
-    if (!$user)
+    if (!$user) {
       return FALSE;
-    if ($user->hasPermission('can make authorized changes'))
+    }
+    if ($user->hasPermission('can make authorized changes')) {
       return TRUE;
+    }
 
     return FALSE;
   }
+
 }
