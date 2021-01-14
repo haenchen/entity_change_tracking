@@ -34,34 +34,17 @@ class EntityChangeTrackingController {
     if (empty($aData[$entityType]['track_new'])) {
       return;
     }
-    $this->createCreationMailing($entity);
+    $this->handleCreationLog($entity);
   }
 
-  private function createCreationMailing(EntityInterface $entity): void {
-    $sSubject = t('A new :entity entity has been created.', [
-      ':entity' => $entity->getEntityTypeId(),
-    ]);
-
-    $sBody = t('%entity has been created with the following values: <br><br>', [
-      '%entity' => $entity->toLink()->toString(),
-    ]);
-    /** @var EntityFieldManager $manager */
-    $manager = \Drupal::service('entity_field.manager');
-    /** @var BaseFieldDefinition $baseField */
-    foreach ($manager->getBaseFieldDefinitions($entity->getEntityTypeId()) as $baseField) {
-      $field = $baseField->getName();
-      $sBody .= t(':field = :value <br>', [
-        ':field' => $field,
-        ':value' => $entity->$field->value,
-      ]);
-    }
-
-    /** TODO: rework mailing */
-    $this->handleMailing([
-      'is_admin_mail' => TRUE,
-      'subject' => $sSubject,
-      'body' => $sBody,
-    ]);
+  private function handleCreationLog(EntityInterface $entity): void {
+    $message = 'A new %entity has been created with the ID %id';
+    $params = [
+      '%entity' =>  $entity->getEntityTypeId(),
+      '%id' => $entity->id(),
+    ];
+   
+    \Drupal::logger('entity_changes')->alert($message, $params);
   }
 
   public function handleChangedEntity(EntityInterface $entity): void {
@@ -83,20 +66,17 @@ class EntityChangeTrackingController {
       }
     }
 
-    $this->createChangedMailingIfNecessary($entity, $changedFields);
+    $this->handleChangeLog($entity, $changedFields);
   }
 
-  private function createChangedMailingIfNecessary(EntityInterface $entity, array $changedFields): void {
+  private function handleChangeLog(EntityInterface $entity, array $changedFields): void {
     if (!$changedFields) {
       return;
     }
 
     $entityType = $entity->getEntityTypeId();
-
-    $subject = t('A(n) %entity entity has been changed', [
-      '%entity' => $entityType,
-    ]);
-    $body = t('The %entity entity with the id :id has been changed. <br>'
+    
+    $message = t('The %entity entity with the id :id has been changed. <br>'
       . 'The following values have been changed: <br><br>', [
       '%entity' => $entityType,
       ':id' => $entity->toLink()->toString(),
@@ -105,7 +85,7 @@ class EntityChangeTrackingController {
       $oldValue = $entity->original->$field->getValue();
       $newValue = $entity->$field->getValue();
       if (!$entity->getFieldDefinition($field)->isMultiple()) {
-        $body .= t('%field has been changed from %original to %new. <br>', [
+        $message .= t('%field has been changed from %original to %new. <br>', [
           '%field' => $field,
           '%original' => $oldValue[0]['value'],
           '%new' => $newValue[0]['value'],
@@ -113,19 +93,14 @@ class EntityChangeTrackingController {
       }
       else {
         $difference = count($oldValue) < count($newValue) ? t('increased') : t('reduced');
-        $body .= t('The amount of items in %field has been :difference. <br>', [
+        $message .= t('The amount of items in %field has been :difference. <br>', [
           '%field' => $field,
           ':difference' => $difference,
         ]);
       }
     }
-    $body .= t('<br>Please check what these changed may effect.');
 
-    /** TODO: rework mail handling */
-    $this->handleMailing([
-      'subject' => $subject,
-      'body' => $body,
-    ]);
+    \Drupal::logger('entity_changes')->alert($message);
   }
 
   private function userMakesAuthorizedChanges(EntityInterface $entity): bool {
