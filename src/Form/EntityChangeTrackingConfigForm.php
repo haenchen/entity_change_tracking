@@ -69,9 +69,9 @@ class EntityChangeTrackingConfigForm extends ConfigFormBase {
         continue;
       $parts = explode('-', $key);
       if ($parts[1] === 'track_new')
-        $aData[$parts[0]]['track_new'] = $value;
+        $data[$parts[0]]['track_new'] = $value;
       if (is_array($value))
-        $this->setTrackedFields($aData, $parts[0], $value);
+        $this->setTrackedFields($data, $parts[0], $value);
     }
 
     $config->set('data', $data);
@@ -81,7 +81,7 @@ class EntityChangeTrackingConfigForm extends ConfigFormBase {
   private function setTrackedFields(array &$data, string $entityType, array $fields) {
     $fieldsToTrack = [];
     foreach ($fields as $key => $value)
-      if ($value)
+      if (!empty($value))
         $fieldsToTrack[] = $key;
 
     $data[$entityType]['fields'] = $fieldsToTrack;
