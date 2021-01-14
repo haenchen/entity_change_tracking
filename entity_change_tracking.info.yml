@@ -3,7 +3,6 @@ type: module
 description: |
   Provides functionality to track entity changes and new entities
 core: 8.x
+core_version_requirement: ^8 || ^9
 package: haenchen toolkit
-dependencies:
-  - drush
 
