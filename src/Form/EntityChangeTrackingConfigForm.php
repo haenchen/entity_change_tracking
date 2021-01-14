@@ -40,7 +40,12 @@ class EntityChangeTrackingConfigForm extends ConfigFormBase {
         ],
       ];
 
+      try {
       $fields = $fieldManager->getBaseFieldDefinitions($entityTypeId);
+      } catch (\Throwable $e) {
+        unset($form[$entityTypeId]);
+        continue;
+      }
       $fields = array_map(static function (BaseFieldDefinition $field) {
         return $field->getName();
       }, $fields);
