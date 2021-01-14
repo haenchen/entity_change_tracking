@@ -97,7 +97,7 @@ class EntityChangeTrackingCommands extends DrushCommands {
     }
 
     $this->setNewEntityTracking($identifier, FALSE);
-    $this->logger()->success("Tracking enabled for new $identifier entities");
+    $this->logger()->success("Tracking disabled for new $identifier entities");
   }
 
   /**

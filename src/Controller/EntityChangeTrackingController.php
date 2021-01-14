@@ -38,10 +38,10 @@ class EntityChangeTrackingController {
   }
 
   private function handleCreationLog(EntityInterface $entity): void {
-    $message = 'A new %entity has been created with the ID %id';
+    $message = 'A new %entity has been created with the ID @id';
     $params = [
       '%entity' =>  $entity->getEntityTypeId(),
-      '%id' => $entity->id(),
+      '@id' => $entity->toLink($entity->id())->toString(),
     ];
    
     \Drupal::logger('entity_changes')->alert($message, $params);
@@ -76,10 +76,10 @@ class EntityChangeTrackingController {
 
     $entityType = $entity->getEntityTypeId();
     
-    $message = t('The %entity entity with the id :id has been changed. <br>'
+    $message = t('The %entity entity with the id @id has been changed. <br>'
       . 'The following values have been changed: <br><br>', [
       '%entity' => $entityType,
-      ':id' => $entity->toLink()->toString(),
+      '@id' => $entity->toLink($entity->id())->toString(),
     ]);
     foreach ($changedFields as $field) {
       $oldValue = $entity->original->$field->getValue();
