@@ -227,6 +227,7 @@ class EntityChangeTrackingCommands extends DrushCommands {
 
   private function setNewEntityTracking(string $entityType, bool $track): void {
     $config = $this->getEditableConfig();
+    $data = $config->get('data') ?? [];
     $data[$entityType]['track_new'] = $track;
     $config->set('data', $data);
     $config->save();
