@@ -1,13 +1,13 @@
 <?php
 
 
-namespace Drupal\haenchen\entity_change_tracking\Form;
+namespace Drupal\entity_change_tracking\Form;
 
 
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\haenchen\entity_change_tracking\Controller\EntityChangeTrackingController;
+use Drupal\entity_change_tracking\Controller\EntityChangeTrackingController;
 
 class EntityChangeTrackingConfigForm extends ConfigFormBase {
 

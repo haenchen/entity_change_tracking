@@ -1,13 +1,13 @@
 <?php
 
 
-namespace Drupal\haenchen\entity_change_tracking\Commands;
+namespace Drupal\entity_change_tracking\Commands;
 
 use Drupal\Core\Config\Config;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
-use Drupal\haenchen\entity_change_tracking\Controller\EntityChangeTrackingController;
-use Drupal\haenchen\entity_change_tracking\Form\EntityChangeTrackingConfigForm;
+use Drupal\entity_change_tracking\Controller\EntityChangeTrackingController;
+use Drupal\entity_change_tracking\Form\EntityChangeTrackingConfigForm;
 use Drush\Commands\DrushCommands;
 
 /** @noinspection ContractViolationInspection */
