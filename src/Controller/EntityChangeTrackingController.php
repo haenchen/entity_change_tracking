@@ -1,12 +1,12 @@
 <?php
 
-namespace haenchen\entity_change_tracking\Controller;
+namespace Drupal\haenchen\entity_change_tracking\Controller;
 
 use Drupal\Core\Entity\EntityFieldManager;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityType;
 use Drupal\Core\Field\BaseFieldDefinition;
-use haenchen\entity_change_tracking\Form\EntityChangeTrackingConfigForm;
+use Drupal\haenchen\entity_change_tracking\Form\EntityChangeTrackingConfigForm;
 use Drupal\user\Entity\User;
 
 class EntityChangeTrackingController {
