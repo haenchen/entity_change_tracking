@@ -13,11 +13,11 @@ class EntityChangeTrackingController {
 
   public function getTypes(): array {
     \Drupal::cache()->delete('qd_data_tracking.classes');
-    $classes = [];
+    $ids = [];
     foreach (\Drupal::entityTypeManager()->getDefinitions() as $definition) {
-      $classes[] = $definition->id();
+      $ids[] = $definition->id();
     }
-    return $classes;
+    return $ids;
   }
 
   public function handleNewEntity(EntityInterface $entity): void {
