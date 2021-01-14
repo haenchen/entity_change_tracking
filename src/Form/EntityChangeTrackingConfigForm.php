@@ -24,13 +24,6 @@ class EntityChangeTrackingConfigForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form = parent::buildForm($form, $form_state);
 
-    $form['recipients'] = [
-      '#type' => 'textfield',
-      '#title' => t('Recipients'),
-      '#default_value' => \Drupal::config(self::CONFIG_NAME)->get('recipients'),
-      '#description' => t('Semicolon separated email addresses'),
-    ];
-
     $entityTypes = (new EntityChangeTrackingController)->getTypes();
     $data = \Drupal::config(self::CONFIG_NAME)->get('data');
     $fieldManager = \Drupal::service('entity_field.manager');
@@ -64,9 +57,6 @@ class EntityChangeTrackingConfigForm extends ConfigFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $config = \Drupal::configFactory()
       ->getEditable(self::CONFIG_NAME);
-
-    // TODO: add validation for email addresses
-    $config->set('recipients', $form_state->get('recipients'));
 
     $data = [];
     foreach ($form_state->getValues() as $key => $value) {
